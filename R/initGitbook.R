@@ -20,11 +20,11 @@ mdfiles <- list.files(dir, "*.md", recursive = TRUE, full.names = TRUE)
 mdfiles <- mdfiles[-c(grep("README.md$", mdfiles), grep("SUMMARY.md$", mdfiles))]
 mdfiles2 <- gsub("\\.md$", ".Rmd", mdfiles)
 file.rename(mdfiles, mdfiles2)
-knitr.header <- c("```{r knitsetup, echo = FALSE, results = 'hide', warning = FALSE, message = FALSE, cache = FALSE}", 
+knitr.header <- c("```{r knitsetup, echo = FALSE, results = 'hide', warning = FALSE, message = FALSE, cache = FALSE, purl = FALSE}", 
                   "opts_knit$set(base.dir = './', fig.path = '', out.format = 'md')", 
                   "opts_chunk$set(prompt = TRUE, comment = '', results = 'markup', fig.path = '../Figure/')", 
                   "# See yihui.name/knitr/options for more Knitr options.", 
-                  "##### Put other setup R code here", "", "",
+                  "##### Put other setup R code here", "",
                   "# end setup chunk",
                   "```")
 
