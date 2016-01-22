@@ -14,80 +14,107 @@
 #' @param log.ext if log files are saved, the file extension to use.
 #' @param ... other parameters passed to \code{\link{knit}}.
 #' @export
-buildRmd <- function(dir = getwd(), clean=FALSE, log.dir, log.ext='.txt', ...) {
-	dir <- normalizePath(dir)
-	bib <- NULL
-	
-	if(!exists('statusfile')) {
-		statusfile <- '.rmdbuild'
-		statusfile <- paste0(dir, '/', statusfile)
-	}
-	
-	rmds <- list.files(dir[1], '.rmd$', ignore.case=TRUE, recursive=TRUE, full.names=TRUE)
-	finfo <- file.info(rmds)
-	
-	referenceFiles <- c()
-
-	# Handle reference files separately. They will be built everytime to ensure
-	# the list is up-to-date
-	referenceFilesPos <- grep('references.Rmd$', rmds, ignore.case=TRUE)
-	if(length(referenceFilesPos) > 0) {
-		referenceFiles <- rmds[referenceFilesPos]
-		rmds <- rmds[-referenceFilesPos]
-	}
-	
-	if(!clean & file.exists(statusfile)) {
-		load(statusfile)
-		newfiles <- row.names(finfo)[!row.names(finfo) %in% row.names(rmdinfo)]
-		existing <- row.names(finfo)[row.names(finfo) %in% row.names(rmdinfo)]
-		existing <- existing[finfo[existing,]$mtime > rmdinfo[existing,]$mtime]
-		rmds <- c(newfiles, existing)
-	}
-	
-	if(length(referenceFiles) > 0) {
-		# This will ensure the reference files are built last.
-		rmds <- c(rmds, referenceFiles)
-	}
-	
-	knitenv <- new.env()
-	bibs <- list.files(dir[1], '.bib$', ignore.case=TRUE)
-	if(length(bibs) > 0) {
-		newbib <- read.bibtex(paste0(dir, '/', bibs[1]))
-		if(clean | is.null(bib)) {
-			if(length(bibs) > 1) { #TODO: support more than one bib file
-				warning(paste0('More than one BibTex file found. Using ', bibs[1]))
-			}
-			cleanbib()
-			bib <- newbib
-		} else {
-			# This will any new references to the bib object
-			newbibs <- names(newbib)[!names(newbib) %in% names(bib)]
-			for(i in newbibs) {
-				bib[i] <- newbib[i]
-			}
-		}
-		assign('bib', bib, envir=knitenv)
-	}
-
-	for(j in rmds) {
-		if(!missing(log.dir)) {
-			dir.create(log.dir, showWarnings=FALSE, recursive=TRUE)
-			log.dir <- normalizePath(log.dir)
-			logfile <- paste0(log.dir, '/', sub('.Rmd$', log.ext, j, ignore.case=TRUE))
-			dir.create(dirname(logfile), recursive=TRUE, showWarnings=FALSE)
-			sink(logfile)
-		}
-		oldwd <- setwd(dirname(j))
-		tryCatch({
-			knit(basename(j), sub('.Rmd$', '.md', basename(j), ignore.case=TRUE), 
-				 envir=knitenv, ...)
-		}, finally={ setwd(oldwd) })
-		if(!missing(log.dir)) { sink() }
-	}
-	
-	rmdinfo <- finfo
-	last.run <- Sys.time()
-	last.R.version <- R.version
-	save(rmdinfo, last.run, last.R.version, bib, file=statusfile)
-	invisible(TRUE)
-}
+buildRmd <-
+  function (dir = getwd(),
+            clean = FALSE,
+            log.dir,
+            log.ext = ".txt",
+            ...)
+  {
+    dir <- normalizePath(dir)
+    bib <- NULL
+    if (!exists("statusfile")) {
+      statusfile <- ".rmdbuild"
+      statusfile <- paste0(dir, "/", statusfile)
+    }
+    rmds <-
+      grep(
+        paste(dir[1], "packrat", sep = "/"),
+        x = list.files(
+          dir[1],
+          ".rmd$",
+          ignore.case = TRUE,
+          recursive = TRUE,
+          full.names = TRUE
+        ),
+        value = TRUE,
+        invert = TRUE
+      )
+    finfo <- file.info(rmds)
+    referenceFiles <- c()
+    referenceFilesPos <-
+      grep("references.Rmd$", rmds, ignore.case = TRUE)
+    if (length(referenceFilesPos) > 0) {
+      referenceFiles <- rmds[referenceFilesPos]
+      rmds <- rmds[-referenceFilesPos]
+    }
+    if (!clean & file.exists(statusfile)) {
+      load(statusfile)
+      newfiles <- row.names(finfo)[!row.names(finfo) %in%
+                                     row.names(rmdinfo)]
+      existing <-
+        row.names(finfo)[row.names(finfo) %in% row.names(rmdinfo)]
+      existing <-
+        existing[finfo[existing,]$mtime > rmdinfo[existing,]$mtime]
+      rmds <- c(newfiles, existing)
+    }
+    if (length(referenceFiles) > 0) {
+      rmds <- c(rmds, referenceFiles)
+    }
+    knitenv <- new.env()
+    bibs <-
+      grep(
+        paste(dir[1], "packrat", sep = "/"),
+        x = list.files(dir[1], ".bib$", ignore.case = TRUE),
+        value = TRUE,
+        invert = TRUE
+      )
+    if (length(bibs) > 0) {
+      newbib <- read.bibtex(paste0(dir, "/", bibs[1]))
+      if (clean | is.null(bib)) {
+        if (length(bibs) > 1) {
+          warning(paste0("More than one BibTex file found. Using ",
+                         bibs[1]))
+        }
+        cleanbib()
+        bib <- newbib
+      }
+      else {
+        newbibs <- names(newbib)[!names(newbib) %in% names(bib)]
+        for (i in newbibs) {
+          bib[i] <- newbib[i]
+        }
+      }
+      assign("bib", bib, envir = knitenv)
+    }
+    for (j in rmds) {
+      if (!missing(log.dir)) {
+        dir.create(log.dir, showWarnings = FALSE, recursive = TRUE)
+        log.dir <- normalizePath(log.dir)
+        logfile <- paste0(log.dir, "/", sub(".Rmd$", log.ext,
+                                            j, ignore.case = TRUE))
+        dir.create(dirname(logfile),
+                   recursive = TRUE,
+                   showWarnings = FALSE)
+        sink(logfile)
+      }
+      oldwd <- setwd(dirname(j))
+      tryCatch({
+        knit(basename(j),
+             sub(".Rmd$", ".md", basename(j),
+                 ignore.case = TRUE),
+             envir = knitenv,
+             ...)
+      }, finally = {
+        setwd(oldwd)
+      })
+      if (!missing(log.dir)) {
+        sink()
+      }
+    }
+    rmdinfo <- finfo
+    last.run <- Sys.time()
+    last.R.version <- R.version
+    save(rmdinfo, last.run, last.R.version, bib, file = statusfile)
+    invisible(TRUE)
+  }
